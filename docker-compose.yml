@@ -1,0 +1,31 @@
+version: '3'
+services:
+  server:
+    build:
+      context: .
+    volumes:
+      - .:/srv/app:cached
+      - node_modules:/srv/app/node_modules
+    command: npm run dev
+    environment:
+      APP_SECRET: "1234"
+    ports:
+      - '4000:4000'
+  prisma:
+    image: prismagraphql/prisma:1.33
+    ports:
+      - '4466:4466'
+    environment:
+      PRISMA_CONFIG: |
+        port: 4466
+        databases:
+          default:
+            connector: mongo
+            uri: mongodb://db
+  db:
+    image: mongo:4.1
+    volumes:
+      - mongo:/var/lib/mongo
+volumes:
+  mongo:
+  node_modules:

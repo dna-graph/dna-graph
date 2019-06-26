@@ -1,0 +1,175 @@
+# DNA Service
+kind: Service
+apiVersion: v1
+metadata:
+  name: dna
+  namespace: ${CICD_GIT_BRANCH}
+spec:
+  selector:
+    app: dna
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 4000
+      targetPort: 80
+---
+# Prisma Service
+kind: Service
+apiVersion: v1
+metadata:
+  name: prisma
+  namespace: ${CICD_GIT_BRANCH}
+spec:
+  selector:
+    app: prisma
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 4466
+      targetPort: 4466
+---
+# Prisma Mongo Service
+kind: Service
+apiVersion: v1
+metadata:
+  name: prisma-db
+  namespace: ${CICD_GIT_BRANCH}
+spec:
+  selector:
+    app: prisma-db
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+
+---
+# DNA Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dna
+  namespace: ${CICD_GIT_BRANCH}
+  labels:
+    app: dna
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dna
+  template:
+    metadata:
+      annotations:
+        commit-ref: ${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+        pipeline-ref: ${CICD_EXECUTION_ID}
+      labels:
+        app: dna
+    spec:
+      # Allow to pull image from gitlab repo
+      #imagePullSecrets:
+      #- name: gitlab
+      containers:
+      - name: dna
+        # Registry image
+        image: un.registry.com/repoName:r-${CICD_GIT_BRANCH}
+        imagePullPolicy: Always
+        command: ["npm"]
+        args: ["run","start"]
+        env:
+          - name: HYDRA_ADMIN_URL
+            value: |
+              port: 4466
+              databases:
+                default:
+                  connector: mongo
+                  uri: mongodb://db
+
+          - name: SHIPPING_PRICE
+            valueFrom:
+              secretKeyRef:
+                key: shipping-price
+                name: ${CICD_GIT_BRANCH}
+---
+# Prisma Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prisma
+  namespace: ${CICD_GIT_BRANCH}
+  labels:
+    app: prisma
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prisma
+  template:
+    metadata:
+      annotations:
+        commit-ref: ${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+        pipeline-ref: ${CICD_EXECUTION_ID}
+      labels:
+        app: prisma
+    spec:
+      containers:
+      - name: prisma
+        image: prismagraphql/prisma:1.33
+        imagePullPolicy: Always
+        env:   
+          - name: PRISMA_CONFIG
+            value: |
+              port: 4466
+              databases:
+                default:
+                  connector: mongo
+                  uri: mongodb://prisma-db
+# Add Persistent DB
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: prisma-db
+#   namespace: ${CICD_GIT_BRANCH}
+# spec:
+#   accessModes:
+#   - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 10Gi
+#   storageClassName: nfs-provisioner
+#   volumeMode: Filesystem
+# status:
+#   accessModes:
+#   - ReadWriteOnce
+#   capacity:
+#     storage: 10Gi
+#   phase: Bound
+---
+# MongoDB Deployment
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: prisma-db
+  namespace: ${CICD_GIT_BRANCH}
+spec:
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: prisma-db
+  template:
+    metadata:
+    spec:
+      containers:
+      - args:
+        image: bitnami/mongodb:4.1
+        imagePullPolicy: Always
+        name: prisma-db
+      #   volumeMounts:
+      #   - mountPath: /bitnami
+      #     name: prisma-db
+      # volumes:
+      # - name: prisma-db
+      #   persistentVolumeClaim:
+      #     claimName: prisma-db
+  updateStrategy:
+    type: RollingUpdate
