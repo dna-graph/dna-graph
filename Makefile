@@ -17,10 +17,8 @@ hard-restart:
 stop:
 	@docker-compose stop
 # Build server
-build-docker:
+build:
 	@docker-compose build --no-cache
-build-package:
-	@docker-compose run --rm server npm run build
 # Deploy Prisma
 deploy:
 	@docker-compose run --rm server npm run prisma-deploy
