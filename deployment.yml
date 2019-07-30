@@ -10,8 +10,8 @@ spec:
   type: ClusterIP
   ports:
     - protocol: TCP
-      port: 4000
-      targetPort: 80
+      port: 80
+      targetPort: 4000
 ---
 # Prisma Service
 kind: Service
@@ -66,43 +66,65 @@ spec:
         app: dna
     spec:
       # Allow to pull image from gitlab repo
-      #imagePullSecrets:
-      #- name: gitlab
+      imagePullSecrets:
+      - name: gitlab
       containers:
       - name: dna
         # Registry image
-        image: un.registry.com/repoName:r-${CICD_GIT_BRANCH}
+        image: my.regirstry.com/dna:${CICD_GIT_BRANCH}
         imagePullPolicy: Always
-        command: ["npm"]
-        args: ["run","start"]
         env:
-          - name: HYDRA_ADMIN_URL
-            value: |
-              port: 4466
-              databases:
-                default:
-                  connector: mongo
-                  uri: mongodb://db
-
-          - name: SHIPPING_PRICE
+          - name: MASTERKEY
             valueFrom:
               secretKeyRef:
-                key: shipping-price
+                key: masterkey
+                name: ${CICD_GIT_BRANCH}
+          - name: MARIA_HOST
+            valueFrom:
+              secretKeyRef:
+                key: db-host
+                name: ${CICD_GIT_BRANCH}
+          - name: MARIA_USER
+            valueFrom:
+              secretKeyRef:
+                key: db-user
+                name: ${CICD_GIT_BRANCH}
+          - name: MARIA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: db-password
+                name: ${CICD_GIT_BRANCH}
+          - name: MARIA_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: db-name
+                name: ${CICD_GIT_BRANCH}
+          - name: MARIA_CONNEXION_LIMIT
+            valueFrom:
+              secretKeyRef:
+                key: db-connexion-limit
+                name: ${CICD_GIT_BRANCH}
+          - name: MARIA_PORT
+            valueFrom:
+              secretKeyRef:
+                key: db-port
                 name: ${CICD_GIT_BRANCH}
 ---
 # Prisma Deployment
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: apps/v1beta2
+kind: StatefulSet
 metadata:
   name: prisma
   namespace: ${CICD_GIT_BRANCH}
   labels:
     app: prisma
 spec:
-  replicas: 1
+  podManagementPolicy: OrderedReady
+  # replicas: 1
   selector:
     matchLabels:
       app: prisma
+  serviceName: ""
   template:
     metadata:
       annotations:
@@ -115,7 +137,7 @@ spec:
       - name: prisma
         image: prismagraphql/prisma:1.33
         imagePullPolicy: Always
-        env:   
+        env:
           - name: PRISMA_CONFIG
             value: |
               port: 4466
@@ -123,7 +145,9 @@ spec:
                 default:
                   connector: mongo
                   uri: mongodb://prisma-db
-# Add Persistent DB
+  updateStrategy:
+    type: RollingUpdate
+#Add Persistent DB
 # ---
 # apiVersion: v1
 # kind: PersistentVolumeClaim
@@ -136,14 +160,8 @@ spec:
 #   resources:
 #     requests:
 #       storage: 10Gi
-#   storageClassName: nfs-provisioner
+#   storageClassName: default
 #   volumeMode: Filesystem
-# status:
-#   accessModes:
-#   - ReadWriteOnce
-#   capacity:
-#     storage: 10Gi
-#   phase: Bound
 ---
 # MongoDB Deployment
 apiVersion: apps/v1beta2
@@ -152,24 +170,43 @@ metadata:
   name: prisma-db
   namespace: ${CICD_GIT_BRANCH}
 spec:
-  podManagementPolicy: OrderedReady
   selector:
     matchLabels:
       app: prisma-db
+  serviceName: ""
   template:
     metadata:
+      labels:
+       app: prisma-db
     spec:
       containers:
       - args:
         image: bitnami/mongodb:4.1
         imagePullPolicy: Always
         name: prisma-db
-      #   volumeMounts:
-      #   - mountPath: /bitnami
-      #     name: prisma-db
-      # volumes:
-      # - name: prisma-db
-      #   persistentVolumeClaim:
-      #     claimName: prisma-db
+        volumeMounts:
+        - mountPath: /bitnami
+          name: prisma-db
+      volumes:
+      - name: prisma-db
+        persistentVolumeClaim:
+          claimName: prisma-db
   updateStrategy:
     type: RollingUpdate
+---
+kind: Service
+apiVersion: v1
+metadata:
+ labels:
+   app: prisma
+   kubernetes.io/cluster-service: "true"
+ name: prisma-admin
+ namespace: ${CICD_GIT_BRANCH}
+spec:
+ type: ClusterIP
+ selector:
+   app: prisma
+ ports:
+ - name: http
+   port: 80
+   targetPort: 4466

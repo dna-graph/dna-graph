@@ -1,0 +1,5 @@
+type Mutation @shield(all) {
+    signup(name: String, email: String, password: String): String @custom
+    login(email: String, password: String): String @custom
+    updateUser: User @shield(isSelf)
+}

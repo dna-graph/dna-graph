@@ -1,6 +1,6 @@
 import { buildSchema } from "graphql"
 import * as fsRead from "fs-readfile-promise"
-import { writeFile } from "fs"
+import { writeFile, readdirSync } from "fs"
 import { Shield, Private, Auto, Custom, Live } from "./decorators"
  
 class Generator  {
@@ -8,7 +8,7 @@ class Generator  {
     dna = {
         graphql: {
             input: {
-                path: "./dna.graphql",
+                path: "./src/dna/",
                 content: ""
             },
             output: {
@@ -186,13 +186,18 @@ export interface Context {
     }
 
     async loadFile() {
-        this.dna.graphql.input.content = await fsRead(this.dna.graphql.input.path,"utf8")
+        const files = readdirSync(this.dna.graphql.input.path)
+        const contents = await Promise.all(files.map(async (name)=> {
+            return await fsRead(this.dna.graphql.input.path+name,"utf8")
+        }))
+        this.dna.graphql.input.content = contents.join("\n\n")
     }
 
     clean(schema) {
         return schema.replace(/(type Query.*{.*(\n.*)*?\n})/gm,"")
             .replace(/(type Mutation.*{.*(\n.*)*?\n})/gm,"")
-            //.replace(/\n\n\n+/gm,"")
+            .replace(/@relation/gm,"@relation(link: INLINE)")
+            .replace(/\n\n/gm,"")
     }
 
 }

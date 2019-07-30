@@ -19,10 +19,10 @@
 ### Strucuture
 
 * `/dna`: Core of the Generator, include each `decorators`
-* `/src`: Custom code for your app
+* `/src/fakes`: Fake ojects
 * `/src/resolvers`: Custom code for types and fields
 * `/src/shields`: Custom code for shields
-* `dna.graphql`: DNA of your backend
+* `/src/dna/`: `GraphQL` files that define your dna
 
 ### Commands
 
@@ -32,13 +32,12 @@
 * `make generate`: Generate/Re-Generate the project
 * `make update`: Update the project based on the DNA after you launch a `make start`
 * `make logs`: Access to server logs
-* `make install`: Install `NodeJS` package: ex: `make install p=express`, `make install p=request-promise`
 * `make fake`: Launch the faker server
 * `make example`: Similar to `make fake` but **use only**
 
 ## Example
 
-> dna.graphql
+> /src/dna/index.graphql
 
 ```graphql
 type Query @shield(all) {
@@ -139,6 +138,7 @@ Allowed operations are:
 * `create`: Create an object, DNA under the hood will generate `Mutation` field like `createUser(...): User`
 * `update`: Update an object, DNA under the hood will generate `Mutation` field like `update(...): User`
 * `updateMany`: Update multiple objects, DNA under the hood will generate `Mutation` field like `updateManyUsers(...): [User]`
+* `upsertUser(...): User`: Upsert an object, DNA under the hood will generate `Mutation` field like `updateUser(...): User`
 * `delete`: Delete one object, DNA under the hood will generate `Mutation` field like `deleteUser(...): User` 
 * `deleteMany`: Delete many objects, DNA under the hood will generate `Mutation` field like `deleteManyUsers(...): [User]`
 

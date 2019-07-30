@@ -105,6 +105,7 @@ export default new ApolloServer({
                 queryParams.push("'"+queryName+ "sConnection'")
                 mutationParams.push("'create"+type+"'")
                 mutationParams.push("'update"+type+"'")
+                mutationParams.push("'upsert"+type+"'")
                 mutationParams.push("'delete"+type+"'")
                 mutationParams.push("'updateMany"+type+"s'")
                 mutationParams.push("'deleteMany"+type+"s'")

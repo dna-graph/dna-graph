@@ -7,6 +7,7 @@ services:
       - .:/srv/app:cached
       - node_modules:/srv/app/node_modules
     command: npm run dev
+    entrypoint: ""
     environment:
       APP_SECRET: "1234"
     ports:
